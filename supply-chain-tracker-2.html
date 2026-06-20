@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wiring Assembly Tracker</title>
+<meta name="theme-color" content="#f97316">
+<link rel="manifest" href="data:application/json,%7B%22name%22%3A%22Wiring%20Tracker%22%2C%22short_name%22%3A%22Tracker%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f1117%22%2C%22theme_color%22%3A%22%23f97316%22%7D">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+:root{--bg:#0f1117;--surface:#1a1d27;--card:#20243a;--border:#2e3354;--accent:#f97316;--accent2:#3b82f6;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--text:#e2e8f0;--muted:#64748b;--font:'Inter',sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* LOGIN */
+.login-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999;}
+.login-screen.hidden{display:none;}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px 28px;width:100%;max-width:360px;margin:16px;}
+.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:24px;font-weight:700;font-size:17px;}
+.login-logo-dot{width:34px;height:34px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:17px;}
+.login-title{font-size:15px;font-weight:700;margin-bottom:3px;}
+.login-sub{font-size:12px;color:var(--muted);margin-bottom:18px;}
+.lg{margin-bottom:13px;}
+.lg label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:5px;}
+.lg input,.lg select{width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:11px 13px;color:var(--text);font-size:14px;font-family:var(--font);outline:none;transition:border-color .15s;}
+.lg input:focus,.lg select:focus{border-color:var(--accent);}
+.lg select option{background:var(--card);}
+.btn-lg{width:100%;padding:13px;background:var(--accent);border:none;border-radius:8px;color:#fff;font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer;margin-top:4px;transition:opacity .15s;}
+.btn-lg:hover{opacity:.88;}
+.btn-sec{width:100%;padding:10px;background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-size:13px;font-family:var(--font);cursor:pointer;margin-top:7px;}
+.pin-dots{display:flex;gap:8px;justify-content:center;margin:6px 0 12px;}
+.pin-dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--border);transition:all .2s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);}
+.login-hint{font-size:11px;color:var(--muted);text-align:center;margin-top:12px;}
+.online-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;padding:3px 8px;border-radius:20px;margin-bottom:14px;}
+.online-badge.on{background:rgba(34,197,94,.15);color:var(--green);}
+.online-badge.off{background:rgba(239,68,68,.15);color:var(--red);}
+
+/* HEADER */
+.header{background:var(--surface);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:58px;position:sticky;top:0;z-index:100;gap:10px;flex-wrap:wrap;}
+.header-brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;}
+.brand-dot{width:26px;height:26px;background:var(--accent);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;}
+.header-right{display:flex;align-items:center;gap:8px;}
+.user-avatar{width:28px;height:28px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;}
+.user-name{font-size:12px;font-weight:600;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:var(--green);}
+.sync-dot.off{background:var(--red);}
+.btn-logout{background:transparent;border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:5px;font-size:11px;cursor:pointer;font-family:var(--font);}
+.nav-tabs{display:flex;gap:3px;background:var(--card);padding:3px;border-radius:7px;}
+.nav-tab{padding:5px 11px;border-radius:5px;font-size:11px;cursor:pointer;border:none;background:transparent;color:var(--muted);font-family:var(--font);transition:all .15s;font-weight:500;}
+.nav-tab.active{background:var(--accent);color:#fff;}
+
+/* MAIN */
+.main{padding:20px;max-width:1100px;margin:0 auto;}
+.page{display:none;}.page.active{display:block;}
+.page-title{font-size:19px;font-weight:700;margin-bottom:3px;}
+.page-sub{font-size:12px;color:var(--muted);margin-bottom:20px;}
+
+/* FORM */
+.fc{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:20px;margin-bottom:18px;}
+.fc-title{font-size:11px;font-weight:600;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
+.fg{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+.fgp{display:flex;flex-direction:column;gap:5px;}
+.fgp label{font-size:11px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+.fgp input,.fgp select{background:var(--card);border:1px solid var(--border);border-radius:7px;padding:9px 11px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;transition:border-color .15s;}
+.fgp input:focus,.fgp select:focus{border-color:var(--accent);}
+.fgp select option{background:var(--card);}
+.qty-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px;}
+.qty-card{background:var(--card);border:1px solid var(--border);border-radius:9px;padding:12px;text-align:center;}
+.qty-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px;}
+.qty-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:5px;padding:7px;color:var(--text);font-size:17px;font-family:var(--font);font-weight:600;text-align:center;outline:none;}
+.qty-input:focus{border-color:var(--accent);}
+.qty-in .qty-label{color:var(--green);}
+.qty-out .qty-label{color:var(--red);}
+.qty-stock .qty-label{color:var(--yellow);}
+.btn-submit{width:100%;margin-top:16px;padding:13px;background:var(--accent);border:none;border-radius:7px;color:#fff;font-size:14px;font-weight:600;font-family:var(--font);cursor:pointer;transition:opacity .15s;}
+.btn-submit:hover{opacity:.88;}
+.btn-submit:disabled{opacity:.5;cursor:not-allowed;}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;padding:11px 18px;border-radius:7px;font-size:13px;font-weight:500;opacity:0;transform:translateY(8px);transition:all .3s;z-index:999;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.success{background:var(--green);color:#fff;}
+.toast.error{background:var(--red);color:#fff;}
+.toast.info{background:var(--accent2);color:#fff;}
+
+/* STATS */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:14px;}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px;}
+.stat-val{font-size:24px;font-weight:700;}
+.stat-val.green{color:var(--green);}.stat-val.red{color:var(--red);}.stat-val.yellow{color:var(--yellow);}.stat-val.orange{color:var(--accent);}
+
+/* TABLE */
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;overflow:hidden;margin-bottom:20px;}
+.table-header{padding:13px 18px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px;}
+.table-header-title{font-size:13px;font-weight:600;}
+.table-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap;}
+.filter-select{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:5px 9px;color:var(--text);font-size:11px;font-family:var(--font);outline:none;cursor:pointer;}
+.btn-export{padding:6px 12px;background:var(--green);border:none;border-radius:5px;color:#fff;font-size:11px;font-family:var(--font);cursor:pointer;font-weight:600;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th{background:var(--card);padding:9px 13px;text-align:left;font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+td{padding:10px 13px;border-top:1px solid var(--border);vertical-align:middle;}
+tr:hover td{background:rgba(255,255,255,.02);}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;}
+.badge-car{background:rgba(59,130,246,.15);color:var(--accent2);}
+.badge-moto{background:rgba(249,115,22,.15);color:var(--accent);}
+.badge-admin{background:rgba(234,179,8,.15);color:var(--yellow);}
+.num-green{color:var(--green);font-weight:600;}.num-red{color:var(--red);font-weight:600;}.num-yellow{color:var(--yellow);font-weight:600;}
+.del-btn{background:rgba(239,68,68,.1);border:none;color:var(--red);padding:3px 7px;border-radius:3px;cursor:pointer;font-size:11px;font-family:var(--font);}
+.empty-state{text-align:center;padding:36px;color:var(--muted);font-size:12px;}
+
+/* TEAM */
+.member-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px;margin-bottom:20px;}
+.member-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:16px;}
+.member-name{font-size:14px;font-weight:700;margin-bottom:2px;}
+.member-role{font-size:11px;color:var(--muted);margin-bottom:12px;}
+.member-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
+.ms{text-align:center;}.ms-val{font-size:16px;font-weight:700;}.ms-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;}
+
+/* SETTINGS */
+.model-manager{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:18px;margin-bottom:18px;}
+.mm-title{font-size:11px;font-weight:600;color:var(--accent2);text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;}
+.model-tabs{display:flex;gap:5px;margin-bottom:12px;flex-wrap:wrap;}
+.model-tab{padding:5px 11px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:11px;font-family:var(--font);cursor:pointer;font-weight:500;}
+.model-tab.active{background:var(--accent2);color:#fff;border-color:var(--accent2);}
+.models-list{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px;min-height:30px;}
+.model-tag{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:4px 11px;font-size:11px;display:flex;align-items:center;gap:5px;cursor:pointer;}
+.model-tag.sel{border-color:var(--accent2);}
+.model-tag-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;line-height:1;padding:0;}
+.model-tag-del:hover{color:var(--red);}
+.add-row{display:flex;gap:7px;}
+.add-input{flex:1;background:var(--card);border:1px solid var(--border);border-radius:7px;padding:8px 11px;color:var(--text);font-size:12px;font-family:var(--font);outline:none;}
+.add-input:focus{border-color:var(--accent2);}
+.btn-add{padding:8px 14px;background:var(--accent2);border:none;border-radius:7px;color:#fff;font-size:12px;font-family:var(--font);cursor:pointer;font-weight:600;}
+.admin-only{background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.2);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--yellow);margin-bottom:14px;}
+
+/* LOADING */
+.loading-overlay{position:fixed;inset:0;background:rgba(15,17,23,.8);display:flex;align-items:center;justify-content:center;z-index:8888;flex-direction:column;gap:12px;}
+.loading-overlay.hidden{display:none;}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:13px;color:var(--muted);}
+
+@media(max-width:600px){
+  .header{height:auto;padding:8px 14px;gap:7px;}
+  .main{padding:12px;}
+  .qty-row{grid-template-columns:1fr;}
+  .nav-tab{font-size:10px;padding:5px 7px;}
+  table{display:block;overflow-x:auto;}
+  .table-header{flex-direction:column;align-items:flex-start;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-overlay hidden" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loadingText">Loading...</div>
+</div>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo"><div class="login-logo-dot">⚡</div>Wiring Assembly Tracker</div>
+    <div id="connStatus" class="online-badge on">● Online</div>
+
+    <div id="step1">
+      <div class="login-title">Apna naam chunain</div>
+      <div class="login-sub">Ya naya account banao</div>
+      <div class="lg">
+        <label>Team Member</label>
+        <select id="loginSel" onchange="onSelChange()">
+          <option value="">-- Select karo --</option>
+        </select>
+      </div>
+      <div class="lg" id="newNameGrp" style="display:none">
+        <label>Naya Naam</label>
+        <input type="text" id="newNameInp" placeholder="Poora naam likho" />
+      </div>
+      <div class="lg" id="roleGrp" style="display:none">
+        <label>Role</label>
+        <select id="roleInp">
+          <option value="worker">Worker</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+      <button class="btn-lg" onclick="goToPin()">Aage Baro →</button>
+      <div class="login-hint">Admin: poora dashboard access · Worker: sirf apna data</div>
+    </div>
+
+    <div id="step2" style="display:none">
+      <div class="login-title" id="pinTitle">PIN daalo</div>
+      <div class="login-sub" id="pinSub">4-digit PIN enter karo</div>
+      <div class="pin-dots">
+        <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+        <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+      </div>
+      <div class="lg">
+        <input type="password" id="pinInp" maxlength="4" inputmode="numeric" pattern="[0-9]*"
+          placeholder="••••" style="text-align:center;font-size:20px;letter-spacing:8px;"
+          oninput="onPinInput()" onkeydown="if(event.key==='Enter')doLogin()" />
+      </div>
+      <button class="btn-lg" onclick="doLogin()">Login Karo</button>
+      <button class="btn-sec" onclick="backToStep1()">← Wapas</button>
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-brand"><div class="brand-dot">⚡</div>Wiring Tracker</div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('entry',this)">Entry</button>
+    <button class="nav-tab" onclick="showPage('dashboard',this)">Dashboard</button>
+    <button class="nav-tab" onclick="showPage('team',this)">Team</button>
+    <button class="nav-tab admin-nav" onclick="showPage('settings',this)" style="display:none">Settings</button>
+  </div>
+  <div class="header-right">
+    <div class="sync-dot" id="syncDot" title="Sync status"></div>
+    <div class="user-avatar" id="uAvatar">?</div>
+    <div class="user-name" id="uName">—</div>
+    <button class="btn-logout" onclick="logout()">Logout</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ENTRY -->
+  <div class="page active" id="page-entry">
+    <div class="page-title">Naya Assembly Entry</div>
+    <div class="page-sub" id="entrySub">Assembly details bharo</div>
+    <div class="fc">
+      <div class="fc-title">Assembly Info</div>
+      <div class="fg">
+        <div class="fgp">
+          <label>Vehicle Type</label>
+          <select id="vType" onchange="loadModels()">
+            <option value="">Select...</option>
+            <option value="Car">Car</option>
+            <option value="Motorcycle">Motorcycle</option>
+          </select>
+        </div>
+        <div class="fgp">
+          <label>Model</label>
+          <select id="vModel" onchange="loadAssemblies()">
+            <option value="">Pehle vehicle chunain</option>
+          </select>
+        </div>
+        <div class="fgp">
+          <label>Assembly Type</label>
+          <select id="vAssembly">
+            <option value="">Pehle model chunain</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="fc">
+      <div class="fc-title">Quantities</div>
+      <div class="qty-row">
+        <div class="qty-card qty-in"><div class="qty-label">In (Received)</div><input class="qty-input" type="number" id="qIn" placeholder="0" min="0"/></div>
+        <div class="qty-card qty-out"><div class="qty-label">Out (Dispatched)</div><input class="qty-input" type="number" id="qOut" placeholder="0" min="0"/></div>
+        <div class="qty-card qty-stock"><div class="qty-label">Stock (Current)</div><input class="qty-input" type="number" id="qStock" placeholder="0" min="0"/></div>
+      </div>
+      <div class="fgp" style="margin-top:12px">
+        <label>Notes (Optional)</label>
+        <input type="text" id="vNotes" placeholder="Koi khaas baat..." style="background:var(--card);border:1px solid var(--border);border-radius:7px;padding:9px 11px;color:var(--text);font-size:13px;font-family:var(--font);outline:none;"/>
+      </div>
+    </div>
+    <button class="btn-submit" id="submitBtn" onclick="submitEntry()">✓ Record Save Karo</button>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="page" id="page-dashboard">
+    <div class="page-title">Dashboard</div>
+    <div class="page-sub" id="dashSub">Records ka overview</div>
+    <div class="table-card" style="margin-bottom:20px;">
+      <div class="table-header">
+        <div class="table-header-title">📦 Assembly-wise Available Stock</div>
+      </div>
+      <div id="stockSummary"></div>
+    </div>
+    <div class="table-card">
+      <div class="table-header">
+        <div class="table-header-title">Records</div>
+        <div class="table-actions">
+          <select class="filter-select" id="fDate" onchange="renderTable()"><option value="">Sab din</option></select>
+          <select class="filter-select" id="fVehicle" onchange="renderTable()"><option value="">Sab vehicle</option><option value="Car">Car</option><option value="Motorcycle">Motorcycle</option></select>
+          <select class="filter-select" id="fMember" onchange="renderTable()"><option value="">Sab log</option></select>
+          <button class="btn-export" onclick="exportExcel()">📥 Excel</button>
+        </div>
+      </div>
+      <div id="tableContainer"></div>
+    </div>
+  </div>
+
+  <!-- TEAM -->
+  <div class="page" id="page-team">
+    <div class="page-title">Team Overview</div>
+    <div class="page-sub">Har member ki performance</div>
+    <div class="member-grid" id="memberGrid"></div>
+  </div>
+
+  <!-- SETTINGS (Admin only) -->
+  <div class="page" id="page-settings">
+    <div class="page-title">Settings</div>
+    <div class="page-sub">Models, assemblies aur team manage karo</div>
+    <div class="admin-only">⚠️ Ye section sirf Admin ke liye hai</div>
+
+    <div class="model-manager">
+      <div class="mm-title">🚗 Vehicle Models & Assembly Types</div>
+      <div class="model-tabs">
+        <button class="model-tab active" onclick="switchVTab('Car',this)">Car</button>
+        <button class="model-tab" onclick="switchVTab('Motorcycle',this)">Motorcycle</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Models (click karo assembly dekhne ke liye)</div>
+      <div class="models-list" id="modelsList"></div>
+      <div class="add-row" style="margin-bottom:14px;">
+        <input class="add-input" id="newModelInp" placeholder="Naya model (e.g. Honda Civic 2024)" />
+        <button class="btn-add" onclick="addModel()">+ Add</button>
+      </div>
+      <div id="assemblySection" style="display:none">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.05em;">Assembly Types — <span id="selModelLbl" style="color:var(--text);text-transform:none;font-weight:600;"></span></div>
+        <div class="models-list" id="assemblyList"></div>
+        <div class="add-row">
+          <input class="add-input" id="newAssemblyInp" placeholder="Naya assembly type (e.g. Door Harness)" />
+          <button class="btn-add" onclick="addAssembly()">+ Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="model-manager">
+      <div class="mm-title">👥 Team Members</div>
+      <div class="models-list" id="membersList"></div>
+      <div class="add-row">
+        <input class="add-input" id="newMemberInp" placeholder="Naya member ka naam" />
+        <select class="add-input" id="newMemberRole" style="max-width:110px;">
+          <option value="worker">Worker</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button class="btn-add" onclick="addMemberFromSettings()">+ Add</button>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--muted);">💡 Naya member add karo — wo login karke khud PIN set karega.</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ───
+const SB_URL = 'https://ewdsbnfgniusnsvdszwd.supabase.co';
+const SB_KEY = 'sb_publishable_abHAiitg9LuCYNl0klAdsQ_mY-tHI9I';
+
+const HEADS = {'Content-Type':'application/json','apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY};
+
+// ─── LOCAL KEYS ───
+const LS_SESS   = 'wat_sess';
+const LS_MODELS = 'wat_models_local';
+const LS_QUEUE  = 'wat_queue'; // offline queue
+
+// ─── DEFAULT MODELS ───
+const DEF_MODELS = {
+  Car:{
+    'Honda Civic':['Engine Loom','Door Harness','Dashboard Wiring','Tail Light Harness','Roof Harness'],
+    'Toyota Corolla':['Engine Loom','Door Harness','Instrument Cluster','Body Harness'],
+    'Suzuki Alto':['Engine Loom','Body Harness','Headlight Harness','Tail Harness'],
+    'Honda City':['Engine Loom','Door Harness','Dashboard Wiring','AC Harness'],
+  },
+  Motorcycle:{
+    'Honda CD 70':['Main Harness','Headlight Wiring','Indicator Wiring','Tail Wiring'],
+    'Honda CG 125':['Main Harness','Headlight Wiring','Tail Harness','CDI Wiring'],
+    'Yamaha YBR':['Main Harness','Tail Harness','CDI Wiring','Indicator Wiring'],
+    'Honda CB 150':['Main Harness','Headlight Wiring','Tail Harness','Instrument Wiring'],
+  }
+};
+
+// ─── STATE ───
+let currentUser = null;
+let isAdmin = false;
+let isOnline = navigator.onLine;
+let loginName = '';
+let loginIsNew = false;
+let loginRole = 'worker';
+let selVTab = 'Car';
+let selModel = '';
+let allRecords = [];
+
+// ─── HELPERS ───
+function getModels(){
+  try{ return JSON.parse(localStorage.getItem(LS_MODELS)||'null') || JSON.parse(JSON.stringify(DEF_MODELS)); }
+  catch{ return JSON.parse(JSON.stringify(DEF_MODELS)); }
+}
+function saveModelsLocal(m){ localStorage.setItem(LS_MODELS,JSON.stringify(m)); }
+function getSession(){ try{ return JSON.parse(localStorage.getItem(LS_SESS)||'null'); }catch{ return null; } }
+function saveSession(d){ localStorage.setItem(LS_SESS,JSON.stringify(d)); }
+function getQueue(){ try{ return JSON.parse(localStorage.getItem(LS_QUEUE)||'[]'); }catch{ return []; } }
+function saveQueue(q){ localStorage.setItem(LS_QUEUE,JSON.stringify(q)); }
+
+function todayStr(){ return new Date().toLocaleDateString('en-PK',{day:'2-digit',month:'short',year:'numeric'}); }
+function isoDate(){ return new Date().toISOString().split('T')[0]; }
+function timeStr(){ return new Date().toLocaleTimeString('en-PK',{hour:'2-digit',minute:'2-digit'}); }
+
+function showLoading(txt){ document.getElementById('loadingOverlay').classList.remove('hidden'); document.getElementById('loadingText').textContent=txt||'Loading...'; }
+function hideLoading(){ document.getElementById('loadingOverlay').classList.add('hidden'); }
+
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast '+type+' show';
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+function updateOnlineUI(){
+  const d=document.getElementById('syncDot');
+  const c=document.getElementById('connStatus');
+  if(isOnline){ d.className='sync-dot'; if(c){ c.className='online-badge on'; c.textContent='● Online'; } }
+  else { d.className='sync-dot off'; if(c){ c.className='online-badge off'; c.textContent='● Offline'; } }
+}
+
+window.addEventListener('online',()=>{ isOnline=true; updateOnlineUI(); flushQueue(); });
+window.addEventListener('offline',()=>{ isOnline=false; updateOnlineUI(); });
+
+// ─── SUPABASE API ───
+async function sbGet(table,params=''){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}?${params}`,{headers:{...HEADS,'Prefer':'return=representation'}});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbPost(table,body){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}`,{method:'POST',headers:{...HEADS,'Prefer':'return=representation'},body:JSON.stringify(body)});
+  if(!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+async function sbDelete(table,id){
+  const r=await fetch(`${SB_URL}/rest/v1/${table}?id=eq.${id}`,{method:'DELETE',headers:HEADS});
+  if(!r.ok) throw new Error(await r.text());
+}
+
+// ─── MEMBERS TABLE ───
+async function getMembers(){
+  try{ return await sbGet('members','select=*'); }
+  catch{ return []; }
+}
+async function addMember(name,pin,role){
+  return sbPost('members',{name,pin,role});
+}
+
+// ─── OFFLINE QUEUE ───
+async function flushQueue(){
+  const q=getQueue();
+  if(!q.length) return;
+  showToast(`${q.length} offline record sync ho rahe hain...`,'info');
+  const failed=[];
+  for(const item of q){
+    try{ await sbPost('records',item); }
+    catch{ failed.push(item); }
+  }
+  saveQueue(failed);
+  if(!failed.length) showToast('Sab offline records sync ho gaye! ✓','success');
+  else showToast(`${failed.length} records sync nahi hue`,'error');
+}
+
+// ─── LOGIN FLOW ───
+async function initApp(){
+  updateOnlineUI();
+  const sess=getSession();
+  if(sess && sess.name){
+    currentUser=sess.name; isAdmin=sess.role==='admin';
+    showApp();
+    return;
+  }
+  await loadMembersDropdown();
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+async function loadMembersDropdown(){
+  const members=await getMembers();
+  const sel=document.getElementById('loginSel');
+  sel.innerHTML='<option value="">-- Select karo --</option>'+
+    members.map(m=>`<option value="${m.name}">${m.name}${m.role==='admin'?' (Admin)':''}</option>`).join('')+
+    '<option value="__new__">+ Naya Account Banao</option>';
+}
+
+function onSelChange(){
+  const v=document.getElementById('loginSel').value;
+  document.getElementById('newNameGrp').style.display=v==='__new__'?'block':'none';
+  document.getElementById('roleGrp').style.display=v==='__new__'?'block':'none';
+}
+
+async function goToPin(){
+  const sel=document.getElementById('loginSel').value;
+  if(!sel){showToast('Naam chunain ya naya account banao','error');return;}
+  if(sel==='__new__'){
+    const nm=document.getElementById('newNameInp').value.trim();
+    if(!nm){showToast('Naam likhna zaroori hai','error');return;}
+    loginName=nm; loginIsNew=true;
+    loginRole=document.getElementById('roleInp').value;
+    document.getElementById('pinTitle').textContent='Naya PIN set karo';
+    document.getElementById('pinSub').textContent='4-digit PIN chunain — yaad rakhna!';
+  } else {
+    loginName=sel; loginIsNew=false;
+    document.getElementById('pinTitle').textContent='PIN daalo';
+    document.getElementById('pinSub').textContent='Apna 4-digit PIN enter karo';
+  }
+  document.getElementById('step1').style.display='none';
+  document.getElementById('step2').style.display='block';
+  document.getElementById('pinInp').value='';
+  updatePinDots(0);
+  setTimeout(()=>document.getElementById('pinInp').focus(),100);
+}
+
+function onPinInput(){ updatePinDots(document.getElementById('pinInp').value.length); }
+function updatePinDots(n){ for(let i=0;i<4;i++) document.getElementById('pd'+i).className='pin-dot'+(i<n?' filled':''); }
+
+async function doLogin(){
+  const pin=document.getElementById('pinInp').value;
+  if(pin.length!==4||!/^\d{4}$/.test(pin)){showToast('4-digit numeric PIN chahiye','error');return;}
+  showLoading('Login ho raha hai...');
+  try{
+    if(loginIsNew){
+      const members=await getMembers();
+      if(members.find(m=>m.name.toLowerCase()===loginName.toLowerCase())){
+        hideLoading(); showToast('Ye naam pehle se registered hai','error'); return;
+      }
+      await addMember(loginName,pin,loginRole);
+      currentUser=loginName; isAdmin=loginRole==='admin';
+    } else {
+      const members=await getMembers();
+      const member=members.find(m=>m.name===loginName);
+      if(!member){hideLoading();showToast('Member nahi mila','error');return;}
+      if(member.pin!==pin){hideLoading();showToast('PIN galat hai','error');return;}
+      currentUser=loginName; isAdmin=member.role==='admin';
+    }
+    saveSession({name:currentUser,role:isAdmin?'admin':'worker'});
+    hideLoading();
+    showApp();
+    flushQueue();
+  } catch(e){
+    hideLoading();
+    showToast('Network error — check connection','error');
+  }
+}
+
+function backToStep1(){
+  document.getElementById('step1').style.display='block';
+  document.getElementById('step2').style.display='none';
+}
+
+function showApp(){
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('uName').textContent=currentUser;
+  document.getElementById('uAvatar').textContent=currentUser.charAt(0).toUpperCase();
+  document.getElementById('entrySub').textContent=`Logged in: ${currentUser}${isAdmin?' (Admin)':''}`;
+  if(isAdmin){
+    document.querySelectorAll('.admin-nav').forEach(e=>e.style.display='');
+    document.getElementById('dashSub').textContent='Tamam team ka data';
+  } else {
+    document.getElementById('dashSub').textContent='Sirf apna data';
+  }
+  updateOnlineUI();
+}
+
+async function logout(){
+  if(!confirm('Logout karna chahte ho?'))return;
+  localStorage.removeItem(LS_SESS);
+  currentUser=null; isAdmin=false;
+  await loadMembersDropdown();
+  document.getElementById('step1').style.display='block';
+  document.getElementById('step2').style.display='none';
+  document.getElementById('loginScreen').classList.remove('hidden');
+}
+
+// ─── NAVIGATION ───
+function showPage(name,btn){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='dashboard') renderDashboard();
+  if(name==='team') renderTeam();
+  if(name==='settings') renderSettings();
+}
+
+// ─── MODEL DROPDOWNS ───
+function loadModels(){
+  const v=document.getElementById('vType').value;
+  const m=getModels();
+  const mSel=document.getElementById('vModel');
+  if(!v){mSel.innerHTML='<option value="">Pehle vehicle chunain</option>';document.getElementById('vAssembly').innerHTML='<option value="">Pehle model chunain</option>';return;}
+  const list=Object.keys(m[v]||{});
+  mSel.innerHTML='<option value="">Model chunain...</option>'+list.map(x=>`<option value="${x}">${x}</option>`).join('');
+  document.getElementById('vAssembly').innerHTML='<option value="">Pehle model chunain</option>';
+}
+
+function loadAssemblies(){
+  const v=document.getElementById('vType').value;
+  const mod=document.getElementById('vModel').value;
+  const m=getModels();
+  const aSel=document.getElementById('vAssembly');
+  if(!mod){aSel.innerHTML='<option value="">Pehle model chunain</option>';return;}
+  const list=(m[v]&&m[v][mod])||[];
+  aSel.innerHTML='<option value="">Assembly chunain...</option>'+list.map(a=>`<option value="${a}">${a}</option>`).join('')+'<option value="__custom__">+ Custom Type</option>';
+  aSel.onchange=function(){
+    if(aSel.value==='__custom__'){
+      const c=prompt('Assembly type likho:');
+      if(c){const o=document.createElement('option');o.value=c;o.text=c;aSel.add(o);aSel.value=c;}
+      else aSel.value='';
+    }
+  };
+}
+
+// ─── SUBMIT ───
+async function submitEntry(){
+  const vehicle=document.getElementById('vType').value;
+  const model=document.getElementById('vModel').value;
+  const assembly=document.getElementById('vAssembly').value;
+  const qIn=parseInt(document.getElementById('qIn').value)||0;
+  const qOut=parseInt(document.getElementById('qOut').value)||0;
+  const qStock=parseInt(document.getElementById('qStock').value)||0;
+  const notes=document.getElementById('vNotes').value.trim();
+  if(!vehicle||!model||!assembly){showToast('Vehicle, Model aur Assembly zaroori hain','error');return;}
+
+  const record={
+    date:isoDate(), date_label:todayStr(), time:timeStr(),
+    member:currentUser, vehicle, model, assembly,
+    qty_in:qIn, qty_out:qOut, qty_stock:qStock, notes
+  };
+
+  const btn=document.getElementById('submitBtn');
+  btn.disabled=true;
+
+  if(isOnline){
+    try{
+      await sbPost('records',record);
+      showToast('✓ Record save ho gaya!','success');
+    } catch(e){
+      const q=getQueue(); q.push(record); saveQueue(q);
+      showToast('Offline: record queue mein save hua','info');
+    }
+  } else {
+    const q=getQueue(); q.push(record); saveQueue(q);
+    showToast('Offline: record queue mein save hua','info');
+  }
+
+  document.getElementById('qIn').value='';
+  document.getElementById('qOut').value='';
+  document.getElementById('qStock').value='';
+  document.getElementById('vNotes').value='';
+  btn.disabled=false;
+}
+
+// ─── DASHBOARD ───
+async function renderDashboard(){
+  showLoading('Data load ho raha hai...');
+  try{
+    let params='select=*&order=id.desc';
+    if(!isAdmin) params+=`&member=eq.${encodeURIComponent(currentUser)}`;
+    allRecords=await sbGet('records',params);
+  } catch(e){
+    allRecords=[];
+    showToast('Data load nahi hua — offline mode','error');
+  }
+  hideLoading();
+
+  renderStockSummary();
+
+  const dates=[...new Set(allRecords.map(r=>r.date))].sort().reverse();
+  const mems=[...new Set(allRecords.map(r=>r.member))];
+  const fd=document.getElementById('fDate');
+  const fdc=fd.value;
+  fd.innerHTML='<option value="">Sab din</option>'+dates.map(d=>{
+    const lbl=allRecords.find(r=>r.date===d)?.date_label||d;
+    return `<option value="${d}" ${d===fdc?'selected':''}>${lbl}</option>`;
+  }).join('');
+  const fm=document.getElementById('fMember');
+  const fmc=fm.value;
+  fm.innerHTML='<option value="">Sab log</option>'+mems.map(m=>`<option value="${m}" ${m===fmc?'selected':''}>${m}</option>`).join('');
+
+  renderTable();
+}
+
+function renderStockSummary(){
+  const byAssembly={};
+  allRecords.forEach(r=>{
+    const key=r.assembly;
+    if(!byAssembly[key]) byAssembly[key]=0;
+    byAssembly[key]+=(r.qty_stock||0);
+  });
+  const keys=Object.keys(byAssembly).sort();
+  const c=document.getElementById('stockSummary');
+  if(!keys.length){c.innerHTML='<div class="empty-state">Koi stock data nahi</div>';return;}
+  c.innerHTML=`<table><thead><tr><th>Assembly No</th><th>Total Stock</th></tr></thead><tbody>
+    ${keys.map(k=>`<tr><td style="font-weight:600">${k}</td><td class="num-yellow">${byAssembly[k]}</td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+function renderTable(){
+  let filtered=allRecords;
+  const fd=document.getElementById('fDate').value;
+  const fv=document.getElementById('fVehicle').value;
+  const fm=document.getElementById('fMember').value;
+  if(fd) filtered=filtered.filter(r=>r.date===fd);
+  if(fv) filtered=filtered.filter(r=>r.vehicle===fv);
+  if(fm) filtered=filtered.filter(r=>r.member===fm);
+
+  const c=document.getElementById('tableContainer');
+  if(!filtered.length){c.innerHTML='<div class="empty-state">Koi record nahi mila</div>';return;}
+
+  c.innerHTML=`<table><thead><tr>
+    <th>Date</th><th>Member</th><th>Main Category</th><th>Category</th><th>Assy No</th>
+    <th>In</th><th>Out</th><th>Stock</th><th>Notes</th>${isAdmin?'<th></th>':''}
+  </tr></thead><tbody>
+  ${filtered.map(r=>`<tr>
+    <td style="font-size:10px;color:var(--muted)">${r.date_label||r.date}<br>${r.time||''}</td>
+    <td style="font-weight:600">${r.member}</td>
+    <td><span class="badge ${r.vehicle==='Car'?'badge-car':'badge-moto'}">${r.vehicle}</span></td>
+    <td>${r.model}</td><td>${r.assembly}</td>
+    <td class="num-green">${r.qty_in}</td>
+    <td class="num-red">${r.qty_out}</td>
+    <td class="num-yellow">${r.qty_stock}</td>
+    <td style="font-size:11px;color:var(--muted)">${r.notes||'—'}</td>
+    ${isAdmin?`<td><button class="del-btn" onclick="deleteRecord(${r.id})">✕</button></td>`:''}
+  </tr>`).join('')}
+  </tbody></table>`;
+}
+
+
+async function deleteRecord(id){
+  if(!confirm('Ye record delete karna chahte ho?'))return;
+  try{ await sbDelete('records',id); allRecords=allRecords.filter(r=>r.id!==id); renderTable(); showToast('Record delete ho gaya','success'); }
+  catch(e){ showToast('Delete nahi hua','error'); }
+}
+
+function exportExcel(){
+  let filtered=allRecords;
+  const fd=document.getElementById('fDate').value;
+  const fv=document.getElementById('fVehicle').value;
+  const fm=document.getElementById('fMember').value;
+  if(fd) filtered=filtered.filter(r=>r.date===fd);
+  if(fv) filtered=filtered.filter(r=>r.vehicle===fv);
+  if(fm) filtered=filtered.filter(r=>r.member===fm);
+  if(!filtered.length){showToast('Export ke liye koi record nahi','error');return;}
+
+  const wsData=[
+    ['Date','Time','Member','Main Category','Category','Assy No','In','Out','Stock','Notes'],
+    ...filtered.map(r=>[r.date_label||r.date,r.time||'',r.member,r.vehicle,r.model,r.assembly,r.qty_in,r.qty_out,r.qty_stock,r.notes||''])
+  ];
+  const wb=XLSX.utils.book_new();
+  const ws=XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols']=[{wch:13},{wch:7},{wch:15},{wch:11},{wch:17},{wch:20},{wch:5},{wch:5},{wch:7},{wch:20}];
+  XLSX.utils.book_append_sheet(wb,ws,'Records');
+  XLSX.writeFile(wb,`Assembly_${isoDate()}.xlsx`);
+}
+
+// ─── TEAM ───
+async function renderTeam(){
+  showLoading('Team data load ho raha hai...');
+  let records=[];
+  try{ records=await sbGet('records','select=*'); }
+  catch(e){ showToast('Data load nahi hua','error'); }
+  hideLoading();
+
+  const members=[...new Set(records.map(r=>r.member))];
+  if(!members.length){document.getElementById('memberGrid').innerHTML='<div class="empty-state">Abhi koi record nahi</div>';return;}
+  document.getElementById('memberGrid').innerHTML=members.map(m=>{
+    const mr=records.filter(r=>r.member===m);
+    const tIn=mr.reduce((s,r)=>s+r.qty_in,0);
+    const tOut=mr.reduce((s,r)=>s+r.qty_out,0);
+    const tStock=mr.reduce((s,r)=>s+r.qty_stock,0);
+    const last=[...mr].sort((a,b)=>b.id-a.id)[0]?.date_label||'—';
+    return `<div class="member-card">
+      <div class="member-name">${m}</div>
+      <div class="member-role">Last entry: ${last} · ${mr.length} records</div>
+      <div class="member-stats">
+        <div class="ms"><div class="ms-val num-green">${tIn}</div><div class="ms-lbl">In</div></div>
+        <div class="ms"><div class="ms-val num-red">${tOut}</div><div class="ms-lbl">Out</div></div>
+        <div class="ms"><div class="ms-val num-yellow">${tStock}</div><div class="ms-lbl">Stock</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── SETTINGS ───
+async function renderSettings(){
+  if(!isAdmin){showToast('Sirf Admin access kar sakta hai','error');return;}
+  renderModelsList();
+  const members=await getMembers();
+  document.getElementById('membersList').innerHTML=members.map(m=>`
+    <div class="model-tag">${m.name} <span class="badge ${m.role==='admin'?'badge-admin':'badge-car'}" style="margin-left:4px">${m.role}</span>
+      <button class="model-tag-del" onclick="removeMember(${m.id},'${m.name.replace(/'/g,"\\'")}')">×</button>
+    </div>`).join('')||'<span style="color:var(--muted);font-size:11px;">Koi member nahi</span>';
+}
+
+async function removeMember(id,name){
+  if(name===currentUser){showToast('Khud ko delete nahi kar sakte','error');return;}
+  if(!confirm(`"${name}" ko remove karna chahte ho?`))return;
+  try{ await sbDelete('members',id); showToast('Member remove ho gaya','success'); renderSettings(); }
+  catch(e){ showToast('Remove nahi hua','error'); }
+}
+
+async function addMemberFromSettings(){
+  const name=document.getElementById('newMemberInp').value.trim();
+  const role=document.getElementById('newMemberRole').value;
+  if(!name){showToast('Naam likhna zaroori hai','error');return;}
+  const pin=prompt(`${name} ka 4-digit PIN set karo:`);
+  if(!pin||!/^\d{4}$/.test(pin)){showToast('Valid 4-digit PIN chahiye','error');return;}
+  try{ await addMember(name,pin,role); document.getElementById('newMemberInp').value=''; showToast('Member add ho gaya','success'); renderSettings(); }
+  catch(e){ showToast('Add nahi hua','error'); }
+}
+
+function switchVTab(v,btn){
+  selVTab=v; selModel='';
+  document.querySelectorAll('.model-tab').forEach(t=>t.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('assemblySection').style.display='none';
+  renderModelsList();
+}
+
+function renderModelsList(){
+  const m=getModels();
+  const list=Object.keys(m[selVTab]||{});
+  document.getElementById('modelsList').innerHTML=list.map(x=>`
+    <div class="model-tag${selModel===x?' sel':''}" onclick="selectModel('${x.replace(/'/g,"\\'")}',this)">${x}
+      <button class="model-tag-del" onclick="event.stopPropagation();deleteModel('${x.replace(/'/g,"\\'")}')">×</button>
+    </div>`).join('')||'<span style="color:var(--muted);font-size:11px;">Koi model nahi</span>';
+}
+
+function selectModel(m,el){
+  selModel=m;
+  document.querySelectorAll('#modelsList .model-tag').forEach(t=>t.classList.remove('sel'));
+  el.classList.add('sel');
+  document.getElementById('selModelLbl').textContent=m;
+  document.getElementById('assemblySection').style.display='block';
+  renderAssemblyList();
+}
+
+function renderAssemblyList(){
+  const m=getModels();
+  const list=(m[selVTab]&&m[selVTab][selModel])||[];
+  document.getElementById('assemblyList').innerHTML=list.map(a=>`
+    <div class="model-tag">${a}
+      <button class="model-tag-del" onclick="deleteAssembly('${a.replace(/'/g,"\\'")}')">×</button>
+    </div>`).join('')||'<span style="color:var(--muted);font-size:11px;">Koi assembly nahi</span>';
+}
+
+function addModel(){
+  const v=document.getElementById('newModelInp').value.trim();
+  if(!v)return;
+  const m=getModels();
+  if(!m[selVTab]) m[selVTab]={};
+  if(m[selVTab][v]){showToast('Ye model pehle se hai','error');return;}
+  m[selVTab][v]=[]; saveModelsLocal(m);
+  document.getElementById('newModelInp').value='';
+  renderModelsList(); showToast('Model add ho gaya','success');
+}
+function deleteModel(x){
+  if(!confirm(`"${x}" delete karna chahte ho?`))return;
+  const m=getModels(); delete m[selVTab][x]; saveModelsLocal(m);
+  if(selModel===x){selModel='';document.getElementById('assemblySection').style.display='none';}
+  renderModelsList(); showToast('Model delete ho gaya','success');
+}
+function addAssembly(){
+  if(!selModel){showToast('Pehle model select karo','error');return;}
+  const v=document.getElementById('newAssemblyInp').value.trim();
+  if(!v)return;
+  const m=getModels();
+  if(!m[selVTab][selModel]) m[selVTab][selModel]=[];
+  if(m[selVTab][selModel].includes(v)){showToast('Ye assembly pehle se hai','error');return;}
+  m[selVTab][selModel].push(v); saveModelsLocal(m);
+  document.getElementById('newAssemblyInp').value='';
+  renderAssemblyList(); showToast('Assembly add ho gayi','success');
+}
+function deleteAssembly(a){
+  if(!confirm(`"${a}" delete karna chahte ho?`))return;
+  const m=getModels();
+  m[selVTab][selModel]=m[selVTab][selModel].filter(x=>x!==a); saveModelsLocal(m);
+  renderAssemblyList(); showToast('Assembly delete ho gayi','success');
+}
+
+// ─── INIT ───
+initApp();
+</script>
+</body>
+</html>
